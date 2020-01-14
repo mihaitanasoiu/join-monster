@@ -1,5 +1,7 @@
 import assert from 'assert'
 import { filter } from 'lodash'
+import idx from 'idx'
+
 import { validateSqlAST, inspect, wrap } from '../util'
 import {
   joinPrefix,
@@ -33,9 +35,9 @@ export default async function stringifySqlAST(topNode, context, options) {
   if (!selections.length) return ''
 
   // put together the SQL query
-  let sql = 'SELECT\n  ' +
-    selections.join(',\n  ') + '\n' +
-    tables.join('\n')
+  let sql = 'SELECT\n  '
+    + selections.join(',\n  ') + '\n'
+    + tables.join('\n')
 
   wheres = filter(wheres)
   if (wheres.length) {
@@ -190,8 +192,7 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
   } else if (idx(node, _ => _.junction.sqlBatch)) {
     if (parent) {
       selections.push(
-        `${q(parent.as)}.${q(node.junction.sqlBatch.parentKey.name)} 
-        AS ${q(joinPrefix(prefix) + node.junction.sqlBatch.parentKey.as)}`
+        `${q(parent.as)}.${q(node.junction.sqlBatch.parentKey.name)} AS ${q(joinPrefix(prefix) + node.junction.sqlBatch.parentKey.as)}`
       )
     } else {
       const joinCondition = await node.junction.sqlBatch.sqlJoin(
@@ -290,4 +291,3 @@ function sortKeyToOrderColumns(sortKey, args) {
   }
   return orderColumns
 }
-
