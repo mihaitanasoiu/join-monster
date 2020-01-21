@@ -1,5 +1,6 @@
 
 import * as graphql from 'graphql'
+import {SQLASTNode} from './query-ast-to-sql-ast'
 
 // Extend graphql objects and fields
 

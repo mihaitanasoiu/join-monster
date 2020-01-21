@@ -1,5 +1,5 @@
 {
-  "name": "join-monster",
+  "name": "join-monster-mssql",
   "version": "2.1.1",
   "description": "A GraphQL to SQL query execution layer for batch data fetching.",
   "main": "dist/index.js",
@@ -11,7 +11,9 @@
   ],
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && babel src --no-comments --out-dir dist --copy-files --ignore README.md",
+    "build": "del /S /F /Q dist && babel src --no-comments --out-dir dist --copy-files --ignore README.md",
+    "publish": "npm version patch && npm run-script build && npm publish --registry  http://build.home:4873",
+
     "watch": "rm -rf dist && babel src --watch --source-maps true --out-dir dist",
     "test": "bin/test --no-oracle",
     "testsqlite3": "NODE_ENV=test ava test/*.js",
@@ -26,8 +28,6 @@
     "start": "babel-watch ./test-api/server.js",
     "docs": "mkdocs serve",
     "jsdoc": "babel src/index.js -o temp.js && (jsdoc2md temp.js | sed '/\\*\\*Kind\\*\\*:/d' > docs/API.md) && rm temp.js",
-    "prepublishOnly": "/bin/sh ./scripts/prepublish.sh && npm run build",
-    "preversion": ". ./scripts/checkgit.sh && npm test",
     "db-build": "TZ=UTC babel-node test-api/data/build.js",
     "db-shell": "sqlite3 --column --header test-api/data/db/demo-data.sl3"
   },
