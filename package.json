@@ -1,6 +1,6 @@
 {
   "name": "join-monster-mssql",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "A GraphQL to SQL query execution layer for batch data fetching.",
   "main": "dist/index.js",
   "engines": {
@@ -13,7 +13,6 @@
   "scripts": {
     "build": "del /S /F /Q dist && babel src --no-comments --out-dir dist --copy-files --ignore README.md",
     "publish": "npm version patch && npm run-script build && npm publish --registry  http://build.home:4873",
-
     "watch": "rm -rf dist && babel src --watch --source-maps true --out-dir dist",
     "test": "bin/test --no-oracle",
     "testsqlite3": "NODE_ENV=test ava test/*.js",
