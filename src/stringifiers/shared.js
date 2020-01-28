@@ -86,9 +86,17 @@ FROM (
 
 export function orderColumnsToString(orderColumns, q, as) {
   const conditions = []
-  for (let column in orderColumns) {
-    if(!column.includes(".")){
-      conditions.push(`${as ? q(as) + '.' : ''}${q(column)} ${orderColumns[column]}`)
+  if(orderColumns.custom){
+    for (let column in orderColumns) {
+      if(column == "custom") continue;
+      const direction = orderColumns[column]
+      conditions.push(`${column} ${direction}`)
+    } 
+  } else {
+    for (let column in orderColumns) {
+      if(!column.includes(".")){
+        conditions.push(`${as ? q(as) + '.' : ''}${q(column)} ${orderColumns[column]}`)
+      }
     }
   }
   return conditions.length ? conditions.join(', ') : '(SELECT NULL)';
