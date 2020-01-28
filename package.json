@@ -1,6 +1,6 @@
 {
   "name": "join-monster-mssql",
-  "version": "2.1.8",
+  "version": "2.1.9",
   "description": "A GraphQL to SQL query execution layer for batch data fetching.",
   "main": "dist/index.js",
   "engines": {
