@@ -33,7 +33,11 @@ export default async function stringifySqlAST(topNode, context, options) {
 
   // bail out if they made no selections
   if (!selections.length) return ''
-
+  
+  if(options.customPagination) {
+    return _customPagination(selections, tables, wheres, orders);
+  }
+    
   // put together the SQL query
   let sql = 'SELECT\n  '
     + selections.join(',\n  ') + '\n'
@@ -46,6 +50,27 @@ export default async function stringifySqlAST(topNode, context, options) {
 
   if (orders.length) {
     sql += '\nORDER BY ' + stringifyOuterOrder(orders, dialect.quote)
+  }
+
+  return sql
+}
+
+function _customPagination(selections, tables, wheres, orders){
+
+  // , count(1) OVER () AS "$total"
+
+  // put together the SQL query
+  let sql = '/* CUSTOM SELECT */\nSELECT\n  '
+  + selections.join(',\n  ') + '\n'
+  + tables.join('\n')
+
+  wheres = filter(wheres)
+  if (wheres.length) {
+  sql += '\nWHERE ' + wheres.join(' AND ')
+  }
+
+  if (orders.length) {
+  sql += '\nORDER BY ' + stringifyOuterOrder(orders, dialect.quote)
   }
 
   return sql
@@ -133,7 +158,6 @@ async function _stringifySqlAST(parent, node, prefix, context, selections, table
 async function handleTable(parent, node, prefix, context, selections, tables, wheres, orders, batchScope, dialect) {
   const { quote: q } = dialect
   // generate the "where" condition, if applicable
-  // console.log(node);
   if (whereConditionIsntSupposedToGoInsideSubqueryOrOnNextBatch(node, parent)) {
     if (idx(node, _ => _.junction.where)) {
       wheres.push(await node.junction.where(`${q(node.junction.as)}`, node.args || {}, context, node))
@@ -151,10 +175,31 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
       })
     }
     if (node.orderBy) {
-      orders.push({
-        table: node.as,
-        columns: node.orderBy
-      })
+      console.log("orderBy",node.orderBy)
+      if(node.orderBy.custom){
+        console.log("here", node.orderBy);
+        orders.push({
+          table: node.as,
+          columns: node.orderBy
+        })
+      } else {
+        for (let column in node.orderBy) {
+          let orderTable = node.as;
+          let orderColumn = column;        
+          if(column.includes(".")) {
+            let parts =  column.split(".");
+            orderTable = parts[0];
+            orderColumn = parts[1];
+          }
+          let columns = {}
+          columns[orderColumn] = node.orderBy[column]
+          orders.push({
+            table: orderTable,
+            columns: columns
+          })
+        }
+      }
+      console.log("orders", orders)
     }
     if (idx(node, _ => _.junction.sortKey)) {
       orders.push({
@@ -184,7 +229,6 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
       await dialect.handleJoinedOneToManyPaginated(parent, node, context, tables, joinCondition)
     // otherwite, just a regular left join on the table
     } else {
-      console.log("join 1");
       tables.push(
         `LEFT JOIN ${node.name} ${q(node.as)} ON ${joinCondition}`
       )
@@ -206,7 +250,6 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
         node.args.first = node.limit
         await dialect.handleBatchedManyToManyPaginated(parent, node, context, tables, batchScope, joinCondition)
       } else {
-        console.log("join 2");
         tables.push(
           `FROM ${node.junction.sqlTable} ${q(node.junction.as)}`,
           `LEFT JOIN ${node.name} ${q(node.as)} ON ${joinCondition}`
@@ -229,12 +272,10 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
       node.args.first = node.limit
       await dialect.handleJoinedManyToManyPaginated(parent, node, context, tables, joinCondition1, joinCondition2)
     } else {
-      console.log("join 4");
       tables.push(
         `LEFT JOIN ${node.junction.sqlTable} ${q(node.junction.as)} ON ${joinCondition1}`
       )
     }
-    console.log("join 5");
     tables.push(
       `LEFT JOIN ${node.name} ${q(node.as)} ON ${joinCondition2}`
     )
@@ -252,7 +293,6 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
       await dialect.handleBatchedOneToManyPaginated(parent, node, context, tables, batchScope)
       // otherwite, just a regular left join on the table
     } else {
-      console.log("join 6");
       tables.push(
         `FROM ${node.name} ${q(node.as)}`
       )
@@ -277,18 +317,27 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
 // ordering inner(sub) queries DOES NOT guarantee the order of those results in the outer query
 function stringifyOuterOrder(orders, q) {
   const conditions = []
-  for (let condition of orders) {
-    for (let column in condition.columns) {
-      let orderTable = condition.table;
-      let orderColumn = column;
-      if(column.includes(".")) {
-        let parts =  column.split(".");
-        orderTable = parts[0];
-        orderColumn = parts[1];
-      } 
-      
-      const direction = condition.columns[column]
-      conditions.push(`${q(orderTable)}.${q(orderColumn)} ${direction}`)
+  console.log("stringifyOuterOrder orders", orders)
+  for (let condition of orders) {    
+    if(condition.columns.custom){
+      delete condition.columns.custom
+      for (let column in condition.columns) {
+        const direction = condition.columns[column]
+        conditions.push(`${column} ${direction}`)
+      }
+    } else {
+      for (let column in condition.columns) {
+        let orderTable = condition.table;
+        let orderColumn = column;
+        if(column.includes(".")) {
+          let parts =  column.split(".");
+          orderTable = parts[0];
+          orderColumn = parts[1];
+        } 
+        
+        const direction = condition.columns[column]
+        conditions.push(`${q(orderTable)}.${q(orderColumn)} ${direction}`)
+      }
     }
   }
   return conditions.length ? conditions.join(', ') : '(SELECT NULL)';
