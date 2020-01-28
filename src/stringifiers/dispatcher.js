@@ -6,7 +6,8 @@ import { validateSqlAST, inspect, wrap } from '../util'
 import {
   joinPrefix,
   thisIsNotTheEndOfThisBatch,
-  whereConditionIsntSupposedToGoInsideSubqueryOrOnNextBatch
+  whereConditionIsntSupposedToGoInsideSubqueryOrOnNextBatch,
+  interpretForOffsetPaging
 } from './shared'
 
 export default async function stringifySqlAST(topNode, context, options) {
@@ -16,6 +17,10 @@ export default async function stringifySqlAST(topNode, context, options) {
 
   if (!dialect && options.dialect) {
     dialect = require('./dialects/' + options.dialect)
+  }
+
+  if(options.customPagination) {
+    topNode.paginate = false;
   }
 
   // recursively figure out all the selections, joins, and where conditions that we need
@@ -35,7 +40,8 @@ export default async function stringifySqlAST(topNode, context, options) {
   if (!selections.length) return ''
   
   if(options.customPagination) {
-    return _customPagination(selections, tables, wheres, orders);
+    topNode.paginate = true;
+    return _customPagination(selections, tables, wheres, orders, dialect, topNode);
   }
     
   // put together the SQL query
@@ -44,7 +50,7 @@ export default async function stringifySqlAST(topNode, context, options) {
     + tables.join('\n')
 
   wheres = filter(wheres)
-  if (wheres.length) {
+  if (wheres.length) {run
     sql += '\nWHERE ' + wheres.join(' AND ')
   }
 
@@ -55,10 +61,14 @@ export default async function stringifySqlAST(topNode, context, options) {
   return sql
 }
 
-function _customPagination(selections, tables, wheres, orders){
+function _customPagination(selections, tables, wheres, orders, dialect, node){
 
-  // , count(1) OVER () AS "$total"
+  selections = selections.filter(function(s){ return !s.endsWith('"$total"');})
+  selections.push('count(1) OVER () AS "$total"');
 
+  const { limit, offset, order } = interpretForOffsetPaging(node, dialect)
+
+  debugger;
   // put together the SQL query
   let sql = '/* CUSTOM SELECT */\nSELECT\n  '
   + selections.join(',\n  ') + '\n'
@@ -72,6 +82,8 @@ function _customPagination(selections, tables, wheres, orders){
   if (orders.length) {
   sql += '\nORDER BY ' + stringifyOuterOrder(orders, dialect.quote)
   }
+
+  sql += `\nOFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY`;
 
   return sql
 }
