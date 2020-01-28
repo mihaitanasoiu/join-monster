@@ -45,7 +45,7 @@ function offsetPagingSelect(table, pagingWhereConditions, order, limit, offset, 
   if (joinCondition) {
     return `\
   ${joinType === 'LEFT' ? 'OUTER' : 'CROSS'} APPLY (
-    SELECT "${as}".*, count(*) OVER () AS ${q('$total')}
+    SELECT "${as}".*, count(1) OVER () AS ${q('$total')}
     FROM ${table} "${as}"
     ${extraJoin ? `LEFT JOIN ${extraJoin.name} ${q(extraJoin.as)}
       ON ${extraJoin.condition}` : ''}
@@ -56,7 +56,7 @@ function offsetPagingSelect(table, pagingWhereConditions, order, limit, offset, 
   }
   return `\
   FROM (
-    SELECT "${as}".*, count(*) OVER () AS ${q('$total')}
+    SELECT "${as}".*, count(1) OVER () AS ${q('$total')}
     FROM ${table} "${as}"
     WHERE ${whereCondition}
     ORDER BY ${orderColumnsToString(order.columns, q, order.table)}

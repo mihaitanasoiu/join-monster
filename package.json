@@ -11,7 +11,9 @@
   ],
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "del /S /F /Q dist && babel src --no-comments --out-dir dist --copy-files --ignore README.md",
+    "build-watch": "watch \"npm run build\" src --interval==1",
+    "build": "babel src --no-comments --out-dir dist --copy-files --ignore README.md",
+    "build2": "del /S /F /Q dist && babel src --no-comments --out-dir dist --copy-files --ignore README.md",
     "publish-tc": "npm version patch && npm run-script build && npm publish --registry  http://build.home:4873",
     "watch": "rm -rf dist && babel src --watch --source-maps true --out-dir dist",
     "test": "bin/test --no-oracle",
@@ -97,7 +99,8 @@
     "nyc": "^14.1.1",
     "pg": "^7.1.0",
     "sinon": "^7.2.4",
-    "sqlite3": "^4.0.9"
+    "sqlite3": "^4.0.9",
+    "watch": "^1.0.2"
   },
   "dependencies": {
     "@stem/nesthydrationjs": "0.4.0",

@@ -1,4 +1,6 @@
 {
   "presets": [ "node6", "stage-1" ],
-  "plugins": [ "transform-do-expressions", "object-values-to-object-keys", "idx" ]
+  "plugins": [ "transform-do-expressions", "object-values-to-object-keys", "idx" ],
+  "sourceMaps": "inline",
+  "retainLines": true
 }

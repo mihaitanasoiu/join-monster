@@ -87,9 +87,11 @@ FROM (
 export function orderColumnsToString(orderColumns, q, as) {
   const conditions = []
   for (let column in orderColumns) {
-    conditions.push(`${as ? q(as) + '.' : ''}${q(column)} ${orderColumns[column]}`)
+    if(!column.includes(".")){
+      conditions.push(`${as ? q(as) + '.' : ''}${q(column)} ${orderColumns[column]}`)
+    }
   }
-  return conditions.join(', ')
+  return conditions.length ? conditions.join(', ') : '(SELECT NULL)';
 }
 
 // find out what the limit, offset, order by parts should be from the relay connection args if we're paginating

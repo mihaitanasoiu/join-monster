@@ -133,6 +133,7 @@ async function _stringifySqlAST(parent, node, prefix, context, selections, table
 async function handleTable(parent, node, prefix, context, selections, tables, wheres, orders, batchScope, dialect) {
   const { quote: q } = dialect
   // generate the "where" condition, if applicable
+  // console.log(node);
   if (whereConditionIsntSupposedToGoInsideSubqueryOrOnNextBatch(node, parent)) {
     if (idx(node, _ => _.junction.where)) {
       wheres.push(await node.junction.where(`${q(node.junction.as)}`, node.args || {}, context, node))
@@ -172,7 +173,7 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
   // one-to-many using JOIN
   if (node.sqlJoin) {
     const joinCondition = await node.sqlJoin(`${q(parent.as)}`, q(node.as), node.args || {}, context, node)
-
+    
     // do we need to paginate? if so this will be a lateral join
     if (node.paginate) {
       await dialect.handleJoinedOneToManyPaginated(parent, node, context, tables, joinCondition)
@@ -183,6 +184,7 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
       await dialect.handleJoinedOneToManyPaginated(parent, node, context, tables, joinCondition)
     // otherwite, just a regular left join on the table
     } else {
+      console.log("join 1");
       tables.push(
         `LEFT JOIN ${node.name} ${q(node.as)} ON ${joinCondition}`
       )
@@ -204,6 +206,7 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
         node.args.first = node.limit
         await dialect.handleBatchedManyToManyPaginated(parent, node, context, tables, batchScope, joinCondition)
       } else {
+        console.log("join 2");
         tables.push(
           `FROM ${node.junction.sqlTable} ${q(node.junction.as)}`,
           `LEFT JOIN ${node.name} ${q(node.as)} ON ${joinCondition}`
@@ -226,10 +229,12 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
       node.args.first = node.limit
       await dialect.handleJoinedManyToManyPaginated(parent, node, context, tables, joinCondition1, joinCondition2)
     } else {
+      console.log("join 4");
       tables.push(
         `LEFT JOIN ${node.junction.sqlTable} ${q(node.junction.as)} ON ${joinCondition1}`
       )
     }
+    console.log("join 5");
     tables.push(
       `LEFT JOIN ${node.name} ${q(node.as)} ON ${joinCondition2}`
     )
@@ -247,6 +252,7 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
       await dialect.handleBatchedOneToManyPaginated(parent, node, context, tables, batchScope)
       // otherwite, just a regular left join on the table
     } else {
+      console.log("join 6");
       tables.push(
         `FROM ${node.name} ${q(node.as)}`
       )
@@ -273,11 +279,19 @@ function stringifyOuterOrder(orders, q) {
   const conditions = []
   for (let condition of orders) {
     for (let column in condition.columns) {
+      let orderTable = condition.table;
+      let orderColumn = column;
+      if(column.includes(".")) {
+        let parts =  column.split(".");
+        orderTable = parts[0];
+        orderColumn = parts[1];
+      } 
+      
       const direction = condition.columns[column]
-      conditions.push(`${q(condition.table)}.${q(column)} ${direction}`)
+      conditions.push(`${q(orderTable)}.${q(orderColumn)} ${direction}`)
     }
   }
-  return conditions.join(', ')
+  return conditions.length ? conditions.join(', ') : '(SELECT NULL)';
 }
 
 function sortKeyToOrderColumns(sortKey, args) {
